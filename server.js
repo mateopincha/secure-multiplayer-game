@@ -11,26 +11,22 @@ const runner = require('./test-runner.js');
 
 const app = express();
 
-// Deshabilitar x-powered-by de Express
-app.disable('x-powered-by');
-
-// Helmet configuración (sin modificar X-Powered-By)
+// ✅ Seguridad con Helmet (permitimos encabezado personalizado)
 app.use(helmet({
-  contentSecurityPolicy: false, // evitar conflictos para pruebas
+  hidePoweredBy: false,
+  contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
   crossOriginOpenerPolicy: false,
   crossOriginResourcePolicy: false
 }));
 
-// Middleware para asegurarnos de siempre enviar el header falso (muy arriba para que no se sobrescriba)
-app.disable('x-powered-by');
-
+// ✅ Encabezado personalizado en todas las respuestas
 app.use((req, res, next) => {
   res.setHeader('X-Powered-By', 'PHP/7.4.3');
   next();
 });
 
-// No cache
+// ✅ Evitar almacenamiento en caché
 app.use((req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.set('Pragma', 'no-cache');
@@ -39,34 +35,41 @@ app.use((req, res, next) => {
   next();
 });
 
-// Archivos estáticos
+// ✅ Archivos estáticos
 app.use('/public', express.static(process.cwd() + '/public'));
 app.use('/assets', express.static(process.cwd() + '/assets'));
 
-// Middlewares
+// ✅ Middlewares
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cors({ origin: '*' }));
 
-// Página principal
+// ✅ Página principal
 app.route('/')
   .get((req, res) => {
     res.sendFile(process.cwd() + '/views/index.html');
   });
 
-// Rutas fCC
+// ✅ Endpoint de depuración de encabezados
+app.get('/debug-headers', (req, res) => {
+  res.setHeader('X-Powered-By', 'PHP/7.4.3');
+  res.json({ headers: res.getHeaders() });
+});
+
+// ✅ Rutas de testing de freeCodeCamp
 fccTestingRoutes(app);
 
-// 404
+// ✅ Middleware 404
 app.use((req, res) => {
   res.status(404).type('text').send('Not Found');
 });
 
+// ✅ Configuración de servidor HTTP y socket.io
 const portNum = process.env.PORT || 3000;
 const server = http.createServer(app);
 const io = socketIO(server, { cors: { origin: "*" } });
 
-// Estado de jugadores y collectibles
+// ✅ Estado de jugadores y coleccionables
 const players = {};
 const collectibles = [
   { id: 'col1', x: 100, y: 100, value: 1, width: 15, height: 15 },
@@ -91,18 +94,10 @@ io.on('connection', (socket) => {
     if (!player) return;
 
     switch (direction) {
-      case 'up':
-        player.y -= MOVE_SPEED;
-        break;
-      case 'down':
-        player.y += MOVE_SPEED;
-        break;
-      case 'left':
-        player.x -= MOVE_SPEED;
-        break;
-      case 'right':
-        player.x += MOVE_SPEED;
-        break;
+      case 'up': player.y -= MOVE_SPEED; break;
+      case 'down': player.y += MOVE_SPEED; break;
+      case 'left': player.x -= MOVE_SPEED; break;
+      case 'right': player.x += MOVE_SPEED; break;
     }
   });
 
@@ -114,6 +109,7 @@ io.on('connection', (socket) => {
   });
 });
 
+// ✅ Iniciar servidor
 server.listen(portNum, () => {
   console.log(`Listening on port ${portNum}`);
   if (process.env.NODE_ENV === 'test') {
