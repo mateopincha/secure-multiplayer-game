@@ -11,6 +11,9 @@ const runner = require('./test-runner.js');
 
 const app = express();
 
+// Deshabilitar el header x-powered-by de Express para evitar que se filtre la tecnología real
+app.disable('x-powered-by');
+
 // Helmet con configuración personalizada para seguridad
 app.use(helmet());
 app.use(helmet.frameguard({ action: 'sameorigin' }));
@@ -28,7 +31,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Encabezado falso para simular PHP
+// Agregar el encabezado falso para simular PHP
 app.use((req, res, next) => {
   res.set('X-Powered-By', 'PHP/7.4.3');
   next();
