@@ -11,26 +11,23 @@ const runner = require('./test-runner.js');
 
 const app = express();
 
-// Deshabilitar x-powered-by de Express
+// Deshabilitar el header real de Express
 app.disable('x-powered-by');
 
-// Helmet configuración (sin modificar X-Powered-By)
+// Helmet sin modificar X-Powered-By
 app.use(helmet({
-  contentSecurityPolicy: false, // evitar conflictos para pruebas
+  contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
   crossOriginOpenerPolicy: false,
   crossOriginResourcePolicy: false
 }));
-
-// Middleware para asegurarnos de siempre enviar el header falso (muy arriba para que no se sobrescriba)
-app.disable('x-powered-by');
 
 app.use((req, res, next) => {
   res.setHeader('X-Powered-By', 'PHP/7.4.3');
   next();
 });
 
-// No cache
+// No cache headers
 app.use((req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.set('Pragma', 'no-cache');
@@ -39,25 +36,21 @@ app.use((req, res, next) => {
   next();
 });
 
-// Archivos estáticos
+// Resto de middlewares y rutas estáticas
 app.use('/public', express.static(process.cwd() + '/public'));
 app.use('/assets', express.static(process.cwd() + '/assets'));
 
-// Middlewares
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cors({ origin: '*' }));
 
-// Página principal
 app.route('/')
   .get((req, res) => {
     res.sendFile(process.cwd() + '/views/index.html');
   });
 
-// Rutas fCC
 fccTestingRoutes(app);
 
-// 404
 app.use((req, res) => {
   res.status(404).type('text').send('Not Found');
 });
@@ -66,7 +59,7 @@ const portNum = process.env.PORT || 3000;
 const server = http.createServer(app);
 const io = socketIO(server, { cors: { origin: "*" } });
 
-// Estado de jugadores y collectibles
+// Juego y lógica sockets (igual que antes)
 const players = {};
 const collectibles = [
   { id: 'col1', x: 100, y: 100, value: 1, width: 15, height: 15 },
