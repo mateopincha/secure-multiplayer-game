@@ -11,18 +11,24 @@ const runner = require('./test-runner.js');
 
 const app = express();
 
-// Deshabilitar el header x-powered-by de Express para evitar que se filtre la tecnología real
+// Deshabilitar x-powered-by de Express
 app.disable('x-powered-by');
 
-// Helmet con configuración personalizada para seguridad
-app.use(helmet());
-app.use(helmet.frameguard({ action: 'sameorigin' }));
-app.use(helmet.dnsPrefetchControl({ allow: false }));
-app.use(helmet.referrerPolicy({ policy: 'same-origin' }));
-app.use(helmet.noSniff());
-app.use(helmet.xssFilter()); // Protección contra XSS
+// Helmet configuración (sin modificar X-Powered-By)
+app.use(helmet({
+  contentSecurityPolicy: false, // evitar conflictos para pruebas
+  crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: false,
+  crossOriginResourcePolicy: false
+}));
 
-// No cache en cliente
+// Middleware para asegurarnos de siempre enviar el header falso (muy arriba para que no se sobrescriba)
+app.use((req, res, next) => {
+  res.setHeader('X-Powered-By', 'PHP/7.4.3');
+  next();
+});
+
+// No cache
 app.use((req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.set('Pragma', 'no-cache');
@@ -31,17 +37,11 @@ app.use((req, res, next) => {
   next();
 });
 
-// Agregar el encabezado falso para simular PHP
-app.use((req, res, next) => {
-  res.set('X-Powered-By', 'PHP/7.4.3');
-  next();
-});
-
 // Archivos estáticos
 app.use('/public', express.static(process.cwd() + '/public'));
 app.use('/assets', express.static(process.cwd() + '/assets'));
 
-// Middleware
+// Middlewares
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cors({ origin: '*' }));
@@ -52,7 +52,7 @@ app.route('/')
     res.sendFile(process.cwd() + '/views/index.html');
   });
 
-// Rutas de test de freeCodeCamp
+// Rutas fCC
 fccTestingRoutes(app);
 
 // 404
@@ -64,36 +64,26 @@ const portNum = process.env.PORT || 3000;
 const server = http.createServer(app);
 const io = socketIO(server, { cors: { origin: "*" } });
 
-// Estado de jugadores
+// Estado de jugadores y collectibles
 const players = {};
-
-// Ejemplo mínimo de collectibles
 const collectibles = [
   { id: 'col1', x: 100, y: 100, value: 1, width: 15, height: 15 },
   { id: 'col2', x: 300, y: 200, value: 2, width: 15, height: 15 },
 ];
 
-// Velocidad de movimiento por paso
 const MOVE_SPEED = 5;
 
 io.on('connection', (socket) => {
   console.log('Jugador conectado:', socket.id);
 
-  // Inicializar jugador
   players[socket.id] = { x: 0, y: 0, score: 0, width: 20, height: 20, id: socket.id };
-
-  // Enviar init al jugador nuevo (puede usar para inicializar localmente)
   socket.emit('init', { id: socket.id, players, collectibles });
-
-  // Informar a otros que un jugador se unió
   socket.broadcast.emit('playerJoined', { id: socket.id, player: players[socket.id] });
 
-  // Intervalo para enviar estado completo (jugadores + collectibles) cada 50ms
   const interval = setInterval(() => {
     io.emit('gameState', { players, collectibles });
   }, 50);
 
-  // Mover jugador según dirección
   socket.on('movePlayer', (direction) => {
     const player = players[socket.id];
     if (!player) return;
@@ -112,8 +102,6 @@ io.on('connection', (socket) => {
         player.x += MOVE_SPEED;
         break;
     }
-
-    // Aquí podrías agregar detección de colisiones con collectibles y actualización de puntuación
   });
 
   socket.on('disconnect', () => {
