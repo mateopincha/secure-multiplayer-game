@@ -23,6 +23,8 @@ app.use(helmet({
 }));
 
 // Middleware para asegurarnos de siempre enviar el header falso (muy arriba para que no se sobrescriba)
+app.disable('x-powered-by');
+
 app.use((req, res, next) => {
   res.setHeader('X-Powered-By', 'PHP/7.4.3');
   next();
